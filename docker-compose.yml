@@ -1,0 +1,51 @@
+# Run:  PUBLIC_BASE_URL=http://<ip-atau-domain>:8090 JWT_SECRET=$(openssl rand -hex 32) ADMIN_PASSWORD='change-me-please' docker compose up --build
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpw}
+      MYSQL_DATABASE: aset_it
+    volumes: [dbdata:/var/lib/mysql]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-p${DB_ROOT_PASSWORD:-rootpw}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    ports: ["${APP_PORT:-8090}:8080"]
+    environment:
+      APP_ENV: production
+      DB_DRIVER: mysql
+      DB_HOST: db
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_ROOT_PASSWORD:-rootpw}
+      DB_DATABASE: aset_it
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (e.g. openssl rand -hex 32)}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD (min 12 chars) for the first admin}
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}      # address inside the QR stickers, e.g. http://192.168.1.10:8090
+      COMPANY_NAME: ${COMPANY_NAME:-Departemen IT}
+      COMPANY_ADDRESS: ${COMPANY_ADDRESS:-}     # letterhead of the BAST
+      COMPANY_PLACE: ${COMPANY_PLACE:-}
+      APPROVER_NAME: ${APPROVER_NAME:-Siti Nurchayati}   # printed under "Diketahui Oleh" on the handover form
+      AUTO_SEED: "true"          # default categories + admin, only into an empty database
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      GUEST_ENABLED: ${GUEST_ENABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TLS: ${SMTP_TLS:-starttls}
+    volumes: [uploads:/app/uploads]
+
+volumes:
+  dbdata:
+  uploads:
